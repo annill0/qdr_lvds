@@ -1,0 +1,139 @@
+`timescale 1ps / 1ps
+
+module new_mdl (
+    input  logic        clk,            
+    input  logic        reset,         
+    input  logic [13:0] data_in,        
+    output logic [3:0]  DA,             
+    output logic        DAFRAMEP, DAFRAMEM,   
+    output logic        DACLKP,DACLKM
+    
+);
+
+
+logic [1:0] count;
+logic int_clk;
+logic [11:0]  setup_time,hold_time;
+    
+initial int_clk=0;
+realtime time_p;
+realtime time_n;
+initial time_p=10ns;
+initial time_n=5ns;
+
+initial setup_time=310ps;
+
+always @(posedge clk) begin
+setup_time = $urandom_range(310,420);
+hold_time = $urandom_range(280,470);
+end
+
+always @(posedge clk) begin
+time_p = $realtime; end
+
+always @(negedge clk) begin
+time_n = $realtime; end
+
+
+always begin if ((time_p-time_n)<0ns) #(-(time_p-time_n)/2) int_clk = ~int_clk;
+             else #((time_p-time_n)/2) int_clk = ~int_clk;
+end
+
+
+//always_ff @(posedge int_clk or posedge reset) begin
+//    if (reset) 
+//        count <= 2'b00;
+//    else if (count == 2'b11)
+//        count <= 2'b00;
+//    else 
+//        count <= count + 1; 
+//end 
+
+
+
+always_ff @(posedge int_clk or posedge reset) begin
+    if (reset) begin
+        DA <= 4'b0;
+        DAFRAMEP <= 1'b0;
+        count <= 2'b00;
+    end
+//    else if (count == 2'b11) count <= 2'b00;
+    else begin
+      
+        case(count)
+            2'b00: begin
+                DA <= data_in[13:10]; 
+                DAFRAMEP <= 1'b1;      
+                count <= count + 1;
+            end
+            2'b01: begin
+                DA <= data_in[9:6]; 
+                DAFRAMEP <= 1'b1;
+                count <= count + 1;
+            end
+            2'b10: begin
+                DA <= data_in[5:2]; 
+                DAFRAMEP <= 1'b0;
+                count <= count + 1;
+            end
+            2'b11: begin
+                DA <= {data_in[1:0], 2'b00}; 
+                DAFRAMEP <= 1'b0;
+                count <= count + 1;
+            end
+        endcase
+    end
+end
+always_ff @(negedge int_clk) begin
+    if (reset) begin
+        DA <= 4'b0;
+        DAFRAMEP <= 1'b0;
+        count <= 2'b00;
+    end
+//    else if (count == 2'b11) count <= 2'b00;
+    else begin
+      
+        case(count)
+            2'b00: begin
+                DA <= data_in[13:10]; 
+                DAFRAMEP <= 1'b1;      
+                count <= count + 1;
+            end
+            2'b01: begin
+                DA <= data_in[9:6]; 
+                DAFRAMEP <= 1'b1;
+                count <= count + 1;
+            end
+            2'b10: begin
+                DA <= data_in[5:2]; 
+                DAFRAMEP <= 1'b0;
+                count <= count + 1;
+            end
+            2'b11: begin
+                DA <= {data_in[1:0], 2'b00}; 
+                DAFRAMEP <= 1'b0;
+                count <= count + 1;
+            end
+        endcase
+    end
+end
+
+
+always @(posedge int_clk)
+begin
+#(setup_time);
+DACLKP = int_clk;
+#(hold_time);
+end
+
+always @(negedge int_clk)
+begin
+#(setup_time);
+DACLKP = int_clk;
+#(hold_time);
+end
+
+//assign DACLKP = int_clk;
+assign DACLKM = ~DACLKP;
+assign DAFRAMEM= ~DAFRAMEP;
+endmodule
